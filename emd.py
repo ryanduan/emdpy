@@ -1,4 +1,4 @@
-# -*- coding: utl-8 -*-
+# -*- coding: utf-8 -*-
 
 """
 #markdown text builder
@@ -17,37 +17,47 @@ class MDBuilder(object):
         """"""
         self.path = path
 
+    def start(self, line):
+        """"""
+        pass
+    
+    def end(self, line):
+        """"""
+        pass
+
+    def eline(self, line):
+        """"""
+        line = line.replace('"""').replace("'''")
+        if line:
+            return line + '\n'
+        return line
+
     def reader(self, filename):
         """"""
         docs = ['##FROM: {}\n'.format(filename)]
         record = False
         for line in open(filename, 'r').readlines():
             # 如果注释在一行内写完，就一三引号开始和结束为判断，内容不为空或者换行符
+            line = line.strip()
             if (line.startswith('"""') or line.startswith("'''")) \
-                and (line.endswith('"""\n') or line.endswith("'''\n")):
-                eline = line.replace('"""', '').replace("'''", '')
-                if eline and eline in ['\n', '\r']:
-                    docs.append(eline)
+                and (line.endswith('"""') or line.endswith("'''")):
+                docs.append(self.eline(line))
                 continue
             # 找到注释开始的那一行，开始记录到docs
             if line.startswith('"""') or line.startswith("'''"):
-                eline = line.replace('"""', '').replace("'''", '')
-                if eline and eline in ['\n', '\r']:
-                    docs.append(eline)
+                docs.append(self.eline(line))
                 record = not record
                 continue
             # 找到注释结束的那一行，停止记录到docs
-            if line.endswith('"""\n') or line.endswith("'''\n"):
-                eline = line.replace('"""', '').replace("'''", '')
-                if eline and eline in ['\n', '\r']:
-                    docs.append(eline)
+            if line.endswith('"""') or line.endswith("'''"):
+                docs.append(self.eline(line))
                 record = not record
                 continue
             # 记录注释到docs
             if record:
                 docs.append(line)
         docs.append('######END for file {}\n'.format(filename))
-        return ''.join(docs)
+        return ''.join(filter(None, docs))
 
     def writer(self, content, name, path='', mode='w'):
         """"""
@@ -108,7 +118,10 @@ class MDBuilder(object):
                 continue
             if record:
                 docs.append(line)
-        doc_list = docs[0] + map(self.github_url, os.walk(os.path.join(self.path, 'doc') + os.sep).next()[-1]) + docs[-1]
+        if docs:
+            doc_list = docs[0] + map(self.github_url, os.walk(os.path.join(self.path, 'doc') + os.sep).next()[-1]) + docs[-1]
+        else:
+            doc_list = ['#Docs'] + map(self.github_url, os.walk(os.path.join(self.path, 'doc') + os.sep).next()[-1]) + ['##Over Docs']
         old = ''.join(docs)
         new = ''.join(doc_list)
         total = open('README.md', 'r').read()
