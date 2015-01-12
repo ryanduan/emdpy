@@ -13,7 +13,9 @@ class MDBuilder(object):
     """
     MarkDown Docs Builder
     """
-    skips = ['tornado', ]  # 略过这些不生成文档的目录或文件
+    skips_dir = ['tornado', 'emdpy', '.git', 'doc']  # 略过这些不生成文档的目录
+    skips_file = ['emd.py', ]
+    skips_suffix = ['pyc', 'pyo', 'swp', 'md', 'sample']
     note1 = r'^""".*"""$'
     note2 = r"^'''.*'''$"
 
@@ -43,28 +45,29 @@ class MDBuilder(object):
         note = "'''"
         for line in open(filename, 'r').readlines():
             line = line.strip()
+            eline = self.eline(line)
             # 如果注释在一行内写完，就一三引号开始和结束为判断，内容不为空或者换行符
             if re.match(self.note1, line) or re.match(self.note2, line):
             #    pass
             #if (line.startswith('"""') or line.startswith("'''")) \
             #    and (line.endswith('"""') or line.endswith("'''")):
-                docs.append(self.eline(line))
+                docs.append(eline)
                 continue
             # 找到注释开始的那一行，开始记录到docs
             if line.startswith('"""') or line.startswith("'''"):
                 if line.startswith('"""'):
                     note = '"""'
-                docs.append(self.eline(line))
+                docs.append(eline)
                 record = not record
                 continue
             # 找到注释结束的那一行，停止记录到docs
             if line.endswith(note):  # or line.endswith("'''"):
-                docs.append(self.eline(line))
+                docs.append(eline)
                 record = not record
                 continue
             # 记录注释到docs
             if record:
-                docs.append(line)
+                docs.append(self.eline(line))
         docs.append('######END for file {}\n'.format(name))
         return ''.join(filter(None, docs))
 
@@ -106,14 +109,29 @@ class MDBuilder(object):
     def worker(self):
         """"""
         for file_list in os.walk(self.path + os.sep):
+            if self.skiper(file_list[0].replace(self.path, '')):
+                continue
             for filename in file_list[-1]:
+                if filename.split('.')[-1] in self.skips_suffix or filename in self.skips_file:
+                    continue
                 if filename == '__init__.py':
                     self.writer(self.reader(os.path.join(file_list[0], filename), filename), file_list[0] + '_init.md', 'doc')
                 elif filename.endswith('.py'):
                     self.writer(self.reader(os.path.join(file_list[0], filename), filename), filename, 'doc')
 
-    def readme(self):
+    def skiper(self, name):
         """"""
+        for skip in name.split('/'):
+            if skip in self.skips_dir:
+                return True
+        for skip in self.skips_dir:
+            if name.startswith(skip):
+                return True
+        return False
+
+
+    def readme(self):
+        """暂时还有问题"""
         docs = []
         record = False
         for line in open('README.md', 'r').readlines():
@@ -159,5 +177,5 @@ if __name__ == '__main__':
     Run itself
     '''for test '''
     """
-    MDBuilder.worker()
-    MDBuilder.readme()
+    MDBuilder().worker()
+    MDBuilder().readme()
