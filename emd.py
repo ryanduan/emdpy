@@ -6,61 +6,70 @@
 
 __author__ = 'awang'
 
-import os, os.path
+import os, os.path, re  # nopep8
 
 
 class MDBuilder(object):
-    """"""
+    """
+    MarkDown Docs Builder
+    """
     skips = ['tornado', ]  # 略过这些不生成文档的目录或文件
+    note1 = r'^""".*"""$'
+    note2 = r"^'''.*'''$"
 
     def __init__(self, path='.'):
         """"""
         self.path = path
 
     def start(self, line):
-        """"""
+        """start"""
         pass
-    
+
     def end(self, line):
-        """"""
+        """end"""
         pass
 
     def eline(self, line):
-        """"""
-        line = line.replace('"""').replace("'''")
+        """escape line"""
+        line = line.replace('"""', '').replace("'''", '')
         if line:
             return line + '\n'
         return line
 
-    def reader(self, filename):
-        """"""
-        docs = ['##FROM: {}\n'.format(filename)]
+    def reader(self, filename, name):
+        """reader"""
+        docs = ['##FROM: {}\n'.format(name)]
         record = False
+        note = "'''"
         for line in open(filename, 'r').readlines():
-            # 如果注释在一行内写完，就一三引号开始和结束为判断，内容不为空或者换行符
             line = line.strip()
-            if (line.startswith('"""') or line.startswith("'''")) \
-                and (line.endswith('"""') or line.endswith("'''")):
+            # 如果注释在一行内写完，就一三引号开始和结束为判断，内容不为空或者换行符
+            if re.match(self.note1, line) or re.match(self.note2, line):
+            #    pass
+            #if (line.startswith('"""') or line.startswith("'''")) \
+            #    and (line.endswith('"""') or line.endswith("'''")):
                 docs.append(self.eline(line))
                 continue
             # 找到注释开始的那一行，开始记录到docs
             if line.startswith('"""') or line.startswith("'''"):
+                if line.startswith('"""'):
+                    note = '"""'
                 docs.append(self.eline(line))
                 record = not record
                 continue
             # 找到注释结束的那一行，停止记录到docs
-            if line.endswith('"""') or line.endswith("'''"):
+            if line.endswith(note):  # or line.endswith("'''"):
                 docs.append(self.eline(line))
                 record = not record
                 continue
             # 记录注释到docs
             if record:
                 docs.append(line)
-        docs.append('######END for file {}\n'.format(filename))
+        docs.append('######END for file {}\n'.format(name))
         return ''.join(filter(None, docs))
 
     def writer(self, content, name, path='', mode='w'):
-        """"""
+        """writer"""
         if path and not os.path.exists(path):
             os.mkdir(path)
         filename = os.path.join(path, name.split('.')[0]) + '.md'
@@ -99,9 +108,9 @@ class MDBuilder(object):
         for file_list in os.walk(self.path + os.sep):
             for filename in file_list[-1]:
                 if filename == '__init__.py':
-                    self.writer(self.reader(os.path.join(file_list[0], filename)), file_list[0] + '_init.md', 'doc')
+                    self.writer(self.reader(os.path.join(file_list[0], filename), filename), file_list[0] + '_init.md', 'doc')
                 elif filename.endswith('.py'):
-                    self.writer(self.reader(os.path.join(file_list[0], filename)), filename, 'doc')
+                    self.writer(self.reader(os.path.join(file_list[0], filename), filename), filename, 'doc')
 
     def readme(self):
         """"""
@@ -119,9 +128,9 @@ class MDBuilder(object):
             if record:
                 docs.append(line)
         if docs:
-            doc_list = docs[0] + map(self.github_url, os.walk(os.path.join(self.path, 'doc') + os.sep).next()[-1]) + docs[-1]
+            doc_list = [docs[0]] + map(self.github_url, os.walk(os.path.join(self.path, 'doc') + os.sep).next()[-1]) + [docs[-1]]
         else:
-            doc_list = ['#Docs'] + map(self.github_url, os.walk(os.path.join(self.path, 'doc') + os.sep).next()[-1]) + ['##Over Docs']
+            doc_list = ['#Docs\n'] + map(self.github_url, os.walk(os.path.join(self.path, 'doc') + os.sep).next()[-1]) + ['##Over Docs\n']
         old = ''.join(docs)
         new = ''.join(doc_list)
         total = open('README.md', 'r').read()
@@ -139,9 +148,16 @@ class MDBuilder(object):
             url = [url for url in open('.git/config', 'r').readlines() if url.startswith('\turl')][0]
         except:
             url = '\turl = git@github.com:ryanduan/music_api.git'
-        return '*  [{}](http://github.com/{}/blog/master/doc/{})'.format(
+        return '*  [{}](http://github.com/{}/blog/master/doc/{})\n'.format(
             name,
             url.split('=')[-1].split('@')[-1].split(':')[-1].split('.')[0],
             name)
 
 
+if __name__ == '__main__':
+    """
+    Run itself
+    '''for test '''
+    """
+    MDBuilder.worker()
+    MDBuilder.readme()
